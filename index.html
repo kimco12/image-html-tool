@@ -1,0 +1,1361 @@
+<title>이미지 → HTML 변환기</title>
+<style>
+  :root {
+    --bg: #f7f5f1;
+    --surface: #ffffff;
+    --surface-2: #f1ede5;
+    --border: #e2ddd3;
+    --text: #201d24;
+    --muted: #6b6672;
+    --accent: #c65119;
+    --accent-tint: #f7e4d6;
+    --accent-ink: #ffffff;
+    --danger: #b03a2e;
+    --good: #2f7a4f;
+    --shadow: 0 1px 2px rgba(32,29,36,.06), 0 8px 24px rgba(32,29,36,.06);
+    --radius: 10px;
+    --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Malgun Gothic", sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "D2Coding", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16151a;
+      --surface: #201e24;
+      --surface-2: #2a2830;
+      --border: #38353e;
+      --text: #f0eee8;
+      --muted: #9a95a3;
+      --accent: #ff8a4c;
+      --accent-tint: rgba(255,138,76,.14);
+      --accent-ink: #201005;
+      --danger: #ff8177;
+      --good: #6bc292;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16151a; --surface: #201e24; --surface-2: #2a2830; --border: #38353e;
+    --text: #f0eee8; --muted: #9a95a3; --accent: #ff8a4c; --accent-tint: rgba(255,138,76,.14);
+    --accent-ink: #201005; --danger: #ff8177; --good: #6bc292;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f7f5f1; --surface: #ffffff; --surface-2: #f1ede5; --border: #e2ddd3;
+    --text: #201d24; --muted: #6b6672; --accent: #c65119; --accent-tint: #f7e4d6;
+    --accent-ink: #ffffff; --danger: #b03a2e; --good: #2f7a4f;
+    --shadow: 0 1px 2px rgba(32,29,36,.06), 0 8px 24px rgba(32,29,36,.06);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  header.page {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 30px;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 14.5px;
+    max-width: 60ch;
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .mode-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-body);
+    color: var(--muted);
+  }
+  .mode-tab strong {
+    display: block;
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 600;
+  }
+  .mode-tab small { font-size: 11.5px; color: var(--muted); }
+  .mode-tab .step {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mode-tab.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .mode-tab.active .step { background: var(--accent); color: var(--accent-ink); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .panel-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .panel-head h2 {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .panel-body { padding: 16px 18px; }
+
+  .dropzone {
+    margin: 16px 18px 0;
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 22px 14px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .dropzone.drag {
+    border-color: var(--accent);
+    background: var(--accent-tint);
+    color: var(--text);
+  }
+  .dropzone strong { color: var(--text); font-weight: 600; }
+  .dropzone input { display: none; }
+
+  .filmstrip {
+    list-style: none;
+    margin: 14px 18px 18px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 560px;
+    overflow-y: auto;
+  }
+  .filmstrip:empty::after {
+    content: "업로드한 이미지가 여기 순서대로 쌓입니다.";
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 12px 2px;
+  }
+  .frame {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    cursor: grab;
+  }
+  .frame.dragging { opacity: .4; }
+  .frame.over { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .frame .handle {
+    color: var(--muted);
+    font-size: 14px;
+    padding: 0 2px;
+    user-select: none;
+  }
+  .frame .no {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--accent);
+    width: 22px;
+    flex: none;
+    text-align: right;
+  }
+  .frame .thumb {
+    width: 48px;
+    height: 48px;
+    flex: none;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--border);
+  }
+  .frame .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .frame .meta {
+    min-width: 0;
+    flex: 1;
+  }
+  .frame .name {
+    font-size: 12.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .frame .size {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .frame .size .save { color: var(--good); }
+  .frame button.rm {
+    flex: none;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: 6px;
+  }
+  .frame button.rm:hover { color: var(--danger); background: var(--accent-tint); }
+
+  .clear-link {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 12.5px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .clear-link:hover { color: var(--danger); }
+
+  .field-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 110px;
+  }
+  .field label {
+    font-size: 11.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .field input[type="text"], .field input[type="number"], .field select {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .field select { font-family: var(--font-body); }
+  .field input:focus, .field select:focus, .seg input:focus + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .seg {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 12.5px;
+  }
+  .seg label {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+    cursor: pointer;
+    color: var(--muted);
+    position: relative;
+  }
+  .seg input { position: absolute; opacity: 0; }
+  .seg input:checked + span { color: var(--accent-ink); }
+  .seg label:has(input:checked) { background: var(--accent); color: var(--accent-ink); }
+  .seg label:not(:last-child) { border-right: 1px solid var(--border); }
+
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 14px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  button.btn {
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button.btn:hover { border-color: var(--accent); }
+  button.btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  button.btn.primary:hover { filter: brightness(1.06); }
+  button.btn:disabled { opacity: .5; cursor: not-allowed; }
+  button.btn.tiny { padding: 4px 9px; font-size: 11.5px; }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+  }
+  .tab {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 7px 7px 0 0;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tab.active {
+    background: var(--surface);
+    border-color: var(--border);
+    border-bottom-color: var(--surface);
+    color: var(--text);
+    margin-bottom: -1px;
+  }
+
+  .output-body { padding: 0; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  textarea#code-output {
+    width: 100%;
+    min-height: 420px;
+    border: none;
+    resize: vertical;
+    padding: 16px 18px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    background: var(--bg);
+    color: var(--text);
+    display: block;
+  }
+  textarea#code-output:focus { outline: none; }
+
+  .preview-frame-wrap {
+    background: var(--surface-2);
+    padding: 16px;
+  }
+  iframe#preview {
+    width: 100%;
+    min-height: 420px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    display: block;
+  }
+
+  .empty-output {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+
+  .status {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .status.warn { color: var(--danger); }
+  .status.ok { color: var(--good); }
+
+  .comp-summary {
+    margin: 0 18px 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--accent-tint);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .comp-summary:empty { display: none; }
+
+  .comp-list {
+    list-style: none;
+    margin: 0 18px 18px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .comp-list:empty::after {
+    content: "왼쪽에 이미지를 추가하면 여기에 압축 대상이 나타납니다.";
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 4px 2px 12px;
+  }
+  .comp-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+  }
+  .comp-item .no {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--accent);
+    width: 20px;
+    flex: none;
+    text-align: right;
+  }
+  .comp-item .thumb {
+    width: 44px;
+    height: 44px;
+    flex: none;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--border);
+  }
+  .comp-item .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .comp-item .meta { min-width: 0; flex: 1; }
+  .comp-item .name {
+    font-size: 12.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .comp-item .size {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .comp-item .size .save { color: var(--good); }
+  .comp-actions { display: flex; gap: 6px; flex: none; }
+
+  .ms-url-list {
+    list-style: none;
+    margin: 0 18px 18px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .ms-url-list:empty::after {
+    content: "왼쪽에 이미지를 추가하면 여기에 URL 입력란이 나타납니다.";
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 4px 2px 12px;
+  }
+  .ms-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+  }
+  .ms-item.missing { border-color: var(--danger); }
+  .ms-item .no {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--accent);
+    width: 20px;
+    flex: none;
+    text-align: right;
+  }
+  .ms-item .thumb {
+    width: 40px;
+    height: 40px;
+    flex: none;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--border);
+  }
+  .ms-item .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ms-item input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .ms-item input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .validate-msg {
+    font-size: 12.5px;
+    color: var(--danger);
+    background: var(--accent-tint);
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin: 10px 18px 0;
+  }
+  .validate-msg:empty { display: none; }
+
+  .output-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 18px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .frame, .comp-item, .dropzone, button.btn { transition: border-color .15s ease, background .15s ease, opacity .15s ease; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="page">
+    <span class="eyebrow">Contact Sheet · Image → HTML</span>
+    <h1>이미지 → HTML 변환기</h1>
+    <p class="sub">이미지를 업로드한 순서대로(또는 드래그로 재정렬해서) 이어붙여, 상세페이지용 HTML 코드를 만듭니다. 모든 처리는 브라우저 안에서만 이루어지며 서버로 전송되지 않습니다.</p>
+  </header>
+
+  <div class="mode-tabs" role="tablist">
+    <button class="mode-tab active" id="mode-tab-compress" data-mode="compress" type="button">
+      <span class="step">1</span>
+      <span><strong>이미지 압축</strong><small>용량 줄이기 (선택)</small></span>
+    </button>
+    <button class="mode-tab" id="mode-tab-convert" data-mode="convert" type="button">
+      <span class="step">2</span>
+      <span><strong>HTML 변환</strong><small>순서 정렬 &amp; 코드 생성</small></span>
+    </button>
+    <button class="mode-tab" id="mode-tab-musinsa" data-mode="musinsa" type="button">
+      <span class="step">3</span>
+      <span><strong>무신사용</strong><small>실제 URL로 코드 생성</small></span>
+    </button>
+  </div>
+
+  <div class="layout">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>필름스트립</h2>
+        <button class="clear-link" id="clear-all" type="button">전체 지우기</button>
+      </div>
+
+      <label class="dropzone" id="dropzone" for="file-input">
+        <strong>클릭하거나 이미지를 드래그해서 놓으세요</strong><br>
+        여러 장 선택 가능 · 추가한 순서대로 번호가 매겨집니다
+        <input id="file-input" type="file" accept="image/*" multiple>
+      </label>
+
+      <ul class="filmstrip" id="filmstrip"></ul>
+    </section>
+
+    <section class="panel" id="panel-compress">
+      <div class="panel-head">
+        <h2>이미지 압축</h2>
+        <span class="status" id="comp-status"></span>
+      </div>
+      <div class="panel-body">
+        <div class="hint">여기서 용량을 줄이면 2단계 HTML 변환의 "내장(base64)" 코드 용량도 함께 줄어듭니다. 쇼핑몰에 등록할 때 413(용량 초과) 오류가 나면 먼저 이 단계를 적용해보세요.</div>
+        <div class="field-row">
+          <div class="field">
+            <label for="comp-max-width">최대 가로 너비(px)</label>
+            <input type="number" id="comp-max-width" value="1200" min="100">
+          </div>
+          <div class="field">
+            <label for="comp-quality">압축 품질(%)</label>
+            <input type="number" id="comp-quality" value="80" min="10" max="100">
+          </div>
+          <div class="field">
+            <label for="comp-format">출력 형식</label>
+            <select id="comp-format">
+              <option value="jpeg">JPEG로 압축 (권장)</option>
+              <option value="keep">원본 형식 유지 (투명배경 필요시)</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="compress-btn" disabled>압축 적용</button>
+          <button class="btn" id="revert-all-btn" disabled>전체 원본으로 되돌리기</button>
+          <button class="btn" id="download-all-btn" disabled>전체 다운로드</button>
+        </div>
+      </div>
+      <div class="comp-summary" id="comp-summary"></div>
+      <ul class="comp-list" id="comp-list"></ul>
+    </section>
+
+    <section class="panel" id="panel-convert" style="display:none;">
+      <div class="panel-head">
+        <h2>변환 설정</h2>
+        <span class="status" id="frame-count">0장</span>
+      </div>
+      <div class="panel-body">
+        <div class="field-row">
+          <div class="field">
+            <label for="src-mode-embed">이미지 소스 방식</label>
+            <div class="seg">
+              <label><input type="radio" name="src-mode" id="src-mode-embed" value="embed" checked><span>내장(base64)</span></label>
+              <label><input type="radio" name="src-mode" id="src-mode-filename" value="filename"><span>파일명 참조</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="hint" id="mode-hint">내장 방식: 이미지 데이터가 HTML 파일 안에 그대로 포함되어 이 파일 하나만으로 어디서든 열립니다. 파일이 많거나 크면 결과 용량이 커질 수 있습니다.</div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="img-width">이미지 너비</label>
+            <input type="text" id="img-width" value="100%">
+          </div>
+          <div class="field">
+            <label for="container-width">컨테이너 최대 너비(px)</label>
+            <input type="number" id="container-width" value="860" min="0">
+          </div>
+          <div class="field">
+            <label for="img-gap">이미지 간격(px)</label>
+            <input type="number" id="img-gap" value="0" min="0">
+          </div>
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="full-doc" checked>
+          완전한 HTML 문서로 감싸기 (해제 시 삽입용 코드 조각만 출력)
+        </label>
+
+        <div class="actions">
+          <button class="btn primary" id="generate-btn" disabled>HTML 생성</button>
+          <button class="btn" id="copy-btn" disabled>코드 복사</button>
+          <button class="btn" id="download-btn" disabled>.html 다운로드</button>
+        </div>
+      </div>
+
+      <div class="panel-head" style="border-top:1px solid var(--border);">
+        <div class="tabs">
+          <button class="tab active" data-view="code" type="button">코드</button>
+          <button class="tab" data-view="preview" type="button">미리보기</button>
+        </div>
+        <span class="status" id="gen-status"></span>
+      </div>
+
+      <div class="output-body">
+        <div class="view active" id="view-code">
+          <div class="empty-output" id="code-empty">왼쪽에 이미지를 추가하고 "HTML 생성"을 누르면 여기에 코드가 나타납니다.</div>
+          <textarea id="code-output" readonly spellcheck="false" style="display:none;"></textarea>
+        </div>
+        <div class="view" id="view-preview">
+          <div class="preview-frame-wrap">
+            <iframe id="preview" title="미리보기" sandbox="allow-same-origin"></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-musinsa" style="display:none;">
+      <div class="panel-head">
+        <h2>무신사용 URL 매칭</h2>
+        <span class="status" id="ms-count">0장</span>
+      </div>
+      <div class="panel-body">
+        <div class="hint">무신사 상품등록 에디터의 이미지 업로드 기능으로 이미지를 먼저 올린 뒤, 거기서 받은 실제 URL을 순서에 맞게 아래에 붙여넣으세요. base64 없이 URL만 들어간 가벼운 코드라 저장 시 중간에 잘리지 않습니다.</div>
+        <div class="field-row">
+          <div class="field">
+            <label for="ms-img-width">이미지 너비</label>
+            <input type="text" id="ms-img-width" value="100%">
+          </div>
+          <div class="field">
+            <label for="ms-container-width">컨테이너 최대 너비(px)</label>
+            <input type="number" id="ms-container-width" value="860" min="0">
+          </div>
+          <div class="field">
+            <label for="ms-img-gap">이미지 간격(px)</label>
+            <input type="number" id="ms-img-gap" value="0" min="0">
+          </div>
+        </div>
+        <label class="check-row">
+          <input type="checkbox" id="ms-full-doc" checked>
+          완전한 HTML 문서로 감싸기 (해제 시 삽입용 코드 조각만 출력)
+        </label>
+      </div>
+
+      <ul class="ms-url-list" id="ms-url-list"></ul>
+
+      <div class="panel-body" style="padding-top:0;">
+        <div class="actions">
+          <button class="btn primary" id="ms-generate-btn" disabled>HTML 생성</button>
+          <button class="btn" id="ms-copy-btn" disabled>코드 복사</button>
+          <button class="btn" id="ms-download-btn" disabled>.html 다운로드</button>
+        </div>
+        <div class="validate-msg" id="ms-validate-msg" style="margin:10px 0 0;"></div>
+      </div>
+
+      <div class="panel-head" style="border-top:1px solid var(--border);">
+        <div class="tabs">
+          <button class="tab active" data-view="ms-code" type="button">코드</button>
+          <button class="tab" data-view="ms-preview" type="button">미리보기</button>
+        </div>
+        <span class="status" id="ms-gen-status"></span>
+      </div>
+
+      <div class="output-body">
+        <div class="view active" id="view-ms-code">
+          <div class="empty-output" id="ms-code-empty">URL을 모두 입력하고 "HTML 생성"을 누르면 여기에 코드가 나타납니다.</div>
+          <textarea id="ms-code-output" readonly spellcheck="false" style="display:none;"></textarea>
+        </div>
+        <div class="view" id="view-ms-preview">
+          <div class="preview-frame-wrap">
+            <iframe id="ms-preview" title="미리보기"></iframe>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  let frames = [];
+  let idSeq = 0;
+  let dragIndex = null;
+  let generatedCode = "";
+
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file-input');
+  const filmstrip = document.getElementById('filmstrip');
+  const frameCount = document.getElementById('frame-count');
+  const clearAllBtn = document.getElementById('clear-all');
+  const generateBtn = document.getElementById('generate-btn');
+  const copyBtn = document.getElementById('copy-btn');
+  const downloadBtn = document.getElementById('download-btn');
+  const genStatus = document.getElementById('gen-status');
+  const codeOutput = document.getElementById('code-output');
+  const codeEmpty = document.getElementById('code-empty');
+  const previewFrame = document.getElementById('preview');
+  const modeHint = document.getElementById('mode-hint');
+  const fullDocCheck = document.getElementById('full-doc');
+
+  const compStatus = document.getElementById('comp-status');
+  const compSummary = document.getElementById('comp-summary');
+  const compList = document.getElementById('comp-list');
+  const compressBtn = document.getElementById('compress-btn');
+  const revertAllBtn = document.getElementById('revert-all-btn');
+  const downloadAllBtn = document.getElementById('download-all-btn');
+
+  const msUrlList = document.getElementById('ms-url-list');
+  const msCount = document.getElementById('ms-count');
+  const msGenerateBtn = document.getElementById('ms-generate-btn');
+  const msCopyBtn = document.getElementById('ms-copy-btn');
+  const msDownloadBtn = document.getElementById('ms-download-btn');
+  const msGenStatus = document.getElementById('ms-gen-status');
+  const msCodeOutput = document.getElementById('ms-code-output');
+  const msCodeEmpty = document.getElementById('ms-code-empty');
+  const msPreviewFrame = document.getElementById('ms-preview');
+  const msValidateMsg = document.getElementById('ms-validate-msg');
+  let msGeneratedCode = '';
+
+  const HINTS = {
+    embed: '내장 방식: 이미지 데이터가 HTML 파일 안에 그대로 포함되어 이 파일 하나만으로 어디서든 열립니다. 파일이 많거나 크면 결과 용량이 커질 수 있습니다.',
+    filename: '파일명 참조 방식: 코드에는 원본 파일명만 들어갑니다. 이 HTML과 이미지 파일들을 같은 폴더(또는 같은 이름으로 서버)에 함께 올려야 정상적으로 보입니다.'
+  };
+
+  document.querySelectorAll('input[name="src-mode"]').forEach(function (radio) {
+    radio.addEventListener('change', function () {
+      modeHint.textContent = HINTS[radio.value];
+    });
+  });
+
+  document.querySelectorAll('.mode-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.mode-tab').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      const mode = btn.dataset.mode;
+      document.getElementById('panel-compress').style.display = mode === 'compress' ? '' : 'none';
+      document.getElementById('panel-convert').style.display = mode === 'convert' ? '' : 'none';
+      document.getElementById('panel-musinsa').style.display = mode === 'musinsa' ? '' : 'none';
+    });
+  });
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  function refreshButtons() {
+    const has = frames.length > 0;
+    generateBtn.disabled = !has;
+    compressBtn.disabled = !has;
+    revertAllBtn.disabled = !has;
+    downloadAllBtn.disabled = !has;
+    msGenerateBtn.disabled = !has;
+    if (!has) {
+      copyBtn.disabled = true;
+      downloadBtn.disabled = true;
+      msCopyBtn.disabled = true;
+      msDownloadBtn.disabled = true;
+    }
+  }
+
+  function renderAll() {
+    renderFilmstrip();
+    renderCompressionList();
+    renderMusinsaList();
+    refreshButtons();
+  }
+
+  function renderMusinsaList() {
+    msUrlList.innerHTML = '';
+    frames.forEach(function (f, i) {
+      const li = document.createElement('li');
+      li.className = 'ms-item';
+      li.innerHTML =
+        '<span class="no">' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<span class="thumb"><img src="' + f.current.blobUrl + '" alt=""></span>' +
+        '<input type="text" placeholder="https://image.msscdn.net/... (' + escapeHtml(f.current.file.name) + ')" value="' + escapeHtml(f.musinsaUrl || '') + '">';
+      const input = li.querySelector('input');
+      input.addEventListener('input', function () {
+        f.musinsaUrl = input.value.trim();
+        li.classList.remove('missing');
+      });
+      msUrlList.appendChild(li);
+    });
+    msCount.textContent = frames.length + '장';
+  }
+
+  function renderFilmstrip() {
+    filmstrip.innerHTML = '';
+    frames.forEach(function (f, i) {
+      const li = document.createElement('li');
+      li.className = 'frame';
+      li.draggable = true;
+      li.dataset.id = f.id;
+
+      const savePct = f.compressed ? Math.round((1 - f.current.size / f.original.size) * 100) : 0;
+      const sizeHtml = f.compressed
+        ? formatSize(f.current.size) + ' <span class="save">(' + (savePct >= 0 ? '-' + savePct : '+' + Math.abs(savePct)) + '%)</span>'
+        : formatSize(f.current.size);
+
+      li.innerHTML =
+        '<span class="handle">⠿</span>' +
+        '<span class="no">' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<span class="thumb"><img src="' + f.current.blobUrl + '" alt=""></span>' +
+        '<span class="meta"><div class="name">' + escapeHtml(f.current.file.name) + '</div><div class="size">' + sizeHtml + '</div></span>' +
+        '<button class="rm" type="button" title="제거">✕</button>';
+
+      li.querySelector('.rm').addEventListener('click', function () {
+        removeFrame(f.id);
+      });
+
+      li.addEventListener('dragstart', function (e) {
+        dragIndex = i;
+        li.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      li.addEventListener('dragend', function () {
+        li.classList.remove('dragging');
+        filmstrip.querySelectorAll('.frame').forEach(function (el) { el.classList.remove('over'); });
+      });
+      li.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        li.classList.add('over');
+      });
+      li.addEventListener('dragleave', function () {
+        li.classList.remove('over');
+      });
+      li.addEventListener('drop', function (e) {
+        e.preventDefault();
+        li.classList.remove('over');
+        if (dragIndex === null || dragIndex === i) return;
+        const moved = frames.splice(dragIndex, 1)[0];
+        frames.splice(i, 0, moved);
+        dragIndex = null;
+        renderAll();
+      });
+
+      filmstrip.appendChild(li);
+    });
+    frameCount.textContent = frames.length + '장';
+  }
+
+  function renderCompressionList() {
+    compList.innerHTML = '';
+    frames.forEach(function (f, i) {
+      const li = document.createElement('li');
+      li.className = 'comp-item';
+
+      let sizeHtml = formatSize(f.original.size);
+      if (f.compressed) {
+        const savePct = Math.round((1 - f.current.size / f.original.size) * 100);
+        sizeHtml = formatSize(f.original.size) + ' → ' + formatSize(f.current.size) +
+          ' <span class="save">(' + (savePct >= 0 ? '-' + savePct : '+' + Math.abs(savePct)) + '%)</span>';
+      }
+
+      li.innerHTML =
+        '<span class="no">' + String(i + 1).padStart(2, '0') + '</span>' +
+        '<span class="thumb"><img src="' + f.current.blobUrl + '" alt=""></span>' +
+        '<span class="meta"><div class="name">' + escapeHtml(f.current.file.name) + '</div><div class="size">' + sizeHtml + '</div></span>' +
+        '<span class="comp-actions">' +
+          (f.compressed ? '<button class="btn tiny revert-one" type="button">되돌리기</button>' : '') +
+          '<button class="btn tiny dl-one" type="button">다운로드</button>' +
+        '</span>';
+
+      const revertBtn = li.querySelector('.revert-one');
+      if (revertBtn) {
+        revertBtn.addEventListener('click', function () {
+          revertFrame(f);
+          renderAll();
+        });
+      }
+      li.querySelector('.dl-one').addEventListener('click', function () {
+        downloadFile(f.current.file);
+      });
+
+      compList.appendChild(li);
+    });
+
+    const totalOrig = frames.reduce(function (s, f) { return s + f.original.size; }, 0);
+    const totalCur = frames.reduce(function (s, f) { return s + f.current.size; }, 0);
+    if (!frames.length) {
+      compSummary.textContent = '';
+    } else if (totalCur === totalOrig) {
+      compSummary.textContent = '총 ' + formatSize(totalOrig) + ' · 압축 전';
+    } else {
+      const pct = Math.round((1 - totalCur / totalOrig) * 100);
+      compSummary.textContent = '총 ' + formatSize(totalOrig) + ' → ' + formatSize(totalCur) + ' (' + (pct >= 0 ? '-' + pct : '+' + Math.abs(pct)) + '%)';
+    }
+  }
+
+  function removeFrame(id) {
+    const idx = frames.findIndex(function (f) { return f.id === id; });
+    if (idx === -1) return;
+    const f = frames[idx];
+    URL.revokeObjectURL(f.original.blobUrl);
+    if (f.current.blobUrl !== f.original.blobUrl) URL.revokeObjectURL(f.current.blobUrl);
+    frames.splice(idx, 1);
+    renderAll();
+  }
+
+  function addFiles(fileList) {
+    Array.from(fileList).forEach(function (file) {
+      if (!file.type.startsWith('image/')) return;
+      const original = { file: file, blobUrl: URL.createObjectURL(file), size: file.size };
+      frames.push({
+        id: 'f' + (idSeq++),
+        original: original,
+        current: original,
+        compressed: false,
+        musinsaUrl: ''
+      });
+    });
+    renderAll();
+  }
+
+  dropzone.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    dropzone.classList.add('drag');
+  });
+  dropzone.addEventListener('dragleave', function () {
+    dropzone.classList.remove('drag');
+  });
+  dropzone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    if (e.dataTransfer.files && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files.length) addFiles(fileInput.files);
+    fileInput.value = '';
+  });
+
+  clearAllBtn.addEventListener('click', function () {
+    frames.forEach(function (f) {
+      URL.revokeObjectURL(f.original.blobUrl);
+      if (f.current.blobUrl !== f.original.blobUrl) URL.revokeObjectURL(f.current.blobUrl);
+    });
+    frames = [];
+    renderAll();
+    codeOutput.style.display = 'none';
+    codeEmpty.style.display = 'block';
+    previewFrame.srcdoc = '';
+    generatedCode = '';
+    compStatus.textContent = '';
+    msCodeOutput.style.display = 'none';
+    msCodeEmpty.style.display = 'block';
+    msPreviewFrame.srcdoc = '';
+    msGeneratedCode = '';
+    msGenStatus.textContent = '';
+    msGenStatus.classList.remove('warn');
+    msValidateMsg.textContent = '';
+  });
+
+  function readAsDataUrl(file) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function compressImageFile(file, maxWidth, quality, forceJpeg) {
+    return new Promise(function (resolve, reject) {
+      const objUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function () {
+        let width = img.naturalWidth;
+        let height = img.naturalHeight;
+        if (width > maxWidth) {
+          height = Math.round(height * (maxWidth / width));
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        const outMime = forceJpeg ? 'image/jpeg' : (file.type === 'image/png' ? 'image/png' : 'image/jpeg');
+        if (outMime === 'image/jpeg') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(function (blob) {
+          URL.revokeObjectURL(objUrl);
+          if (!blob) { reject(new Error('compress failed')); return; }
+          resolve({ blob: blob, mime: outMime });
+        }, outMime, quality);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(objUrl);
+        reject(new Error('image load failed'));
+      };
+      img.src = objUrl;
+    });
+  }
+
+  function revertFrame(f) {
+    if (f.current.blobUrl !== f.original.blobUrl) URL.revokeObjectURL(f.current.blobUrl);
+    f.current = f.original;
+    f.compressed = false;
+  }
+
+  compressBtn.addEventListener('click', async function () {
+    if (!frames.length) return;
+    const maxWidth = parseInt(document.getElementById('comp-max-width').value, 10) || 1200;
+    const quality = (parseInt(document.getElementById('comp-quality').value, 10) || 80) / 100;
+    const forceJpeg = document.getElementById('comp-format').value === 'jpeg';
+
+    compressBtn.disabled = true;
+    for (let i = 0; i < frames.length; i++) {
+      const f = frames[i];
+      compStatus.textContent = '압축 중… (' + (i + 1) + '/' + frames.length + ')';
+      compStatus.classList.remove('warn', 'ok');
+      try {
+        const result = await compressImageFile(f.original.file, maxWidth, quality, forceJpeg);
+        const baseName = f.original.file.name.replace(/\.[a-zA-Z0-9]+$/, '');
+        const newName = result.mime === 'image/jpeg' ? baseName + '.jpg' : f.original.file.name;
+        const newFile = new File([result.blob], newName, { type: result.mime });
+        if (f.current.blobUrl !== f.original.blobUrl) URL.revokeObjectURL(f.current.blobUrl);
+        f.current = { file: newFile, blobUrl: URL.createObjectURL(newFile), size: newFile.size };
+        f.compressed = true;
+      } catch (e) {
+        // leave this frame as-is if compression fails
+      }
+      renderAll();
+    }
+    const totalOrig = frames.reduce(function (s, f) { return s + f.original.size; }, 0);
+    const totalCur = frames.reduce(function (s, f) { return s + f.current.size; }, 0);
+    const pct = totalOrig ? Math.round((1 - totalCur / totalOrig) * 100) : 0;
+    compStatus.textContent = '완료 · ' + (pct >= 0 ? pct + '% 절감' : Math.abs(pct) + '% 증가');
+    compStatus.classList.add(pct >= 0 ? 'ok' : 'warn');
+    compressBtn.disabled = false;
+  });
+
+  revertAllBtn.addEventListener('click', function () {
+    frames.forEach(revertFrame);
+    renderAll();
+    compStatus.textContent = '전체 원본으로 되돌림';
+    compStatus.classList.remove('warn');
+    compStatus.classList.add('ok');
+  });
+
+  function downloadFile(file) {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  downloadAllBtn.addEventListener('click', function () {
+    frames.forEach(function (f, i) {
+      setTimeout(function () { downloadFile(f.current.file); }, i * 200);
+    });
+  });
+
+  function buildImageTags(srcs) {
+    const width = document.getElementById('img-width').value.trim() || '100%';
+    const gap = parseInt(document.getElementById('img-gap').value, 10) || 0;
+    return frames.map(function (f, i) {
+      const style = 'display:block;width:' + width + ';' + (gap && i < frames.length - 1 ? 'margin-bottom:' + gap + 'px;' : '');
+      return '  <img src="' + escapeHtml(srcs[i]) + '" alt="' + escapeHtml(f.current.file.name.replace(/\.[a-zA-Z0-9]+$/, '')) + '" style="' + style + '">';
+    }).join('\n');
+  }
+
+  function wrapDocument(bodyInner) {
+    const maxWidth = parseInt(document.getElementById('container-width').value, 10) || 0;
+    const containerStyle = maxWidth ? 'max-width:' + maxWidth + 'px;margin:0 auto;' : '';
+    const container = '<div class="detail-images" style="' + containerStyle + '">\n' + bodyInner + '\n</div>';
+    if (!fullDocCheck.checked) return container;
+    return '<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>상세페이지</title>\n</head>\n<body>\n' + container + '\n</body>\n</html>';
+  }
+
+  async function generate() {
+    if (!frames.length) return;
+    const mode = document.querySelector('input[name="src-mode"]:checked').value;
+    generateBtn.disabled = true;
+    genStatus.textContent = mode === 'embed' ? '이미지 인코딩 중…' : '생성 중…';
+    genStatus.classList.remove('warn');
+
+    let srcs;
+    if (mode === 'embed') {
+      srcs = await Promise.all(frames.map(function (f) { return readAsDataUrl(f.current.file); }));
+    } else {
+      srcs = frames.map(function (f) { return f.current.file.name; });
+    }
+
+    const body = buildImageTags(srcs);
+    generatedCode = wrapDocument(body);
+
+    codeOutput.value = generatedCode;
+    codeOutput.style.display = 'block';
+    codeEmpty.style.display = 'none';
+
+    // Preview always uses live blob URLs so it renders correctly regardless of export mode.
+    const previewSrcs = frames.map(function (f) { return f.current.blobUrl; });
+    previewFrame.srcdoc = wrapDocument(buildImageTags(previewSrcs));
+
+    const totalBytes = frames.reduce(function (sum, f) { return sum + f.current.size; }, 0);
+    if (mode === 'embed' && totalBytes > 5 * 1024 * 1024) {
+      genStatus.textContent = '완료 · 원본 용량 ' + formatSize(totalBytes) + ' (내장 시 결과 파일이 큽니다 · 1단계 압축을 적용해보세요)';
+      genStatus.classList.add('warn');
+    } else {
+      genStatus.textContent = '완료 · ' + frames.length + '장 변환됨';
+    }
+
+    generateBtn.disabled = false;
+    copyBtn.disabled = false;
+    downloadBtn.disabled = false;
+  }
+
+  generateBtn.addEventListener('click', generate);
+
+  copyBtn.addEventListener('click', async function () {
+    if (!generatedCode) return;
+    try {
+      await navigator.clipboard.writeText(generatedCode);
+      const original = copyBtn.textContent;
+      copyBtn.textContent = '복사됨 ✓';
+      setTimeout(function () { copyBtn.textContent = original; }, 1500);
+    } catch (e) {
+      codeOutput.select();
+      document.execCommand('copy');
+    }
+  });
+
+  downloadBtn.addEventListener('click', function () {
+    if (!generatedCode) return;
+    const blob = new Blob([generatedCode], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'detail-page.html';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  function buildMsImageTags() {
+    const width = document.getElementById('ms-img-width').value.trim() || '100%';
+    const gap = parseInt(document.getElementById('ms-img-gap').value, 10) || 0;
+    return frames.map(function (f, i) {
+      const style = 'display:block;width:' + width + ';' + (gap && i < frames.length - 1 ? 'margin-bottom:' + gap + 'px;' : '');
+      return '  <img src="' + escapeHtml(f.musinsaUrl) + '" alt="' + escapeHtml(f.current.file.name.replace(/\.[a-zA-Z0-9]+$/, '')) + '" style="' + style + '">';
+    }).join('\n');
+  }
+
+  function wrapMsDocument(bodyInner) {
+    const maxWidth = parseInt(document.getElementById('ms-container-width').value, 10) || 0;
+    const containerStyle = maxWidth ? 'max-width:' + maxWidth + 'px;margin:0 auto;' : '';
+    const container = '<div class="detail-images" style="' + containerStyle + '">\n' + bodyInner + '\n</div>';
+    if (!document.getElementById('ms-full-doc').checked) return container;
+    return '<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>상세페이지</title>\n</head>\n<body>\n' + container + '\n</body>\n</html>';
+  }
+
+  msGenerateBtn.addEventListener('click', function () {
+    if (!frames.length) {
+      msValidateMsg.textContent = '먼저 왼쪽에서 이미지를 추가해주세요.';
+      return;
+    }
+    document.querySelectorAll('.ms-item').forEach(function (el) { el.classList.remove('missing'); });
+    const missingIdx = [];
+    frames.forEach(function (f, i) { if (!f.musinsaUrl) missingIdx.push(i); });
+    if (missingIdx.length) {
+      missingIdx.forEach(function (i) {
+        const li = msUrlList.children[i];
+        if (li) li.classList.add('missing');
+      });
+      const numbers = missingIdx.map(function (i) { return i + 1; }).join(', ');
+      msValidateMsg.textContent = numbers + '번 이미지의 URL이 비어있습니다. 위 목록에서 빨간 테두리 칸에 무신사 업로드로 받은 실제 URL을 입력해주세요.';
+      msGenStatus.textContent = missingIdx.length + '장의 URL이 비어있습니다';
+      msGenStatus.classList.add('warn');
+      const firstLi = msUrlList.children[missingIdx[0]];
+      if (firstLi) {
+        firstLi.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const firstInput = firstLi.querySelector('input');
+        if (firstInput) firstInput.focus();
+      }
+      return;
+    }
+    msValidateMsg.textContent = '';
+    msGenStatus.classList.remove('warn');
+    const body = buildMsImageTags();
+    msGeneratedCode = wrapMsDocument(body);
+    msCodeOutput.value = msGeneratedCode;
+    msCodeOutput.style.display = 'block';
+    msCodeEmpty.style.display = 'none';
+    msPreviewFrame.srcdoc = msGeneratedCode;
+    msGenStatus.textContent = '완료 · ' + frames.length + '장';
+    msCopyBtn.disabled = false;
+    msDownloadBtn.disabled = false;
+  });
+
+  msCopyBtn.addEventListener('click', async function () {
+    if (!msGeneratedCode) return;
+    try {
+      await navigator.clipboard.writeText(msGeneratedCode);
+      const original = msCopyBtn.textContent;
+      msCopyBtn.textContent = '복사됨 ✓';
+      setTimeout(function () { msCopyBtn.textContent = original; }, 1500);
+    } catch (e) {
+      msCodeOutput.select();
+      document.execCommand('copy');
+    }
+  });
+
+  msDownloadBtn.addEventListener('click', function () {
+    if (!msGeneratedCode) return;
+    const blob = new Blob([msGeneratedCode], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'detail-page-musinsa.html';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
+      tab.classList.add('active');
+      document.getElementById('view-' + tab.dataset.view).classList.add('active');
+    });
+  });
+
+  renderAll();
+})();
+</script>
